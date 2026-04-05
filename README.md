@@ -1,51 +1,140 @@
-# ADAS_Regulations_RAG
-Retrieval‑Augmented Generation pipeline for comparing ADAS regulation standards
 
-## Problem Statement
+# Multimodal RAG API: ADAS Regulatory Intelligence
 
-**Domain.** This work sits at the intersection of **vehicle type approval**, **Advanced Driver Assistance Systems (ADAS)**, and **regulatory engineering** for markets that reference both **India’s Automotive Industry Standard AIS‑162** (Advanced Emergency Braking Systems, AEBS, for commercial vehicle categories) and **UNECE Regulation No. 131** (uniform provisions for AEBS approval under the UN type‑approval framework). Homologation engineers, supplier compliance teams, and test-house reviewers routinely work from **statutory PDF packs** that interleave normative clauses, **annex tables of speed bands and performance limits**, and **diagrams of longitudinal collision‑threat scenarios**. The practical task is not “read the PDF once,” but to **cross‑walk** two instruments while keeping every answer traceable to the correct annex row, footnote, or figure note.
+Domain: AIS-162 & UNECE R131 ComplianceThis repository contains a Multimodal Retrieval-Augmented Generation (RAG) system designed for vehicle type approval and regulatory engineering. It allows users to query dense technical PDF documents containing text, tables, and diagrams.
 
-**Problem.** In day‑to‑day approval work, the bottleneck is **synthesising comparable intent across regimes** without misreading **tabular thresholds** or stripping **figure‑bound context**. AIS‑162 and R131 are written as **self‑contained approval texts**: limits appear in dense tables (e.g. scenario identifiers paired with maximum speeds, minimum required decelerations or warning timing, and exclusions), while **scenario geometry**—who moves, who brakes, lane relationship, and target class—is carried in **diagrams and defined terms** that the tables assume but do not repeat. Keyword search across a flat text export fails because (a) **table cells lose row/column semantics**, (b) **captions and figure numbering** drift away from the body text in extracted content, and (c) **cross‑references** (“see Annex …, figure …”) span modalities. Teams still default to manual side‑by‑side comparison, which is slow, error‑prone under deadline, and hard to audit when an interpretation is challenged.
+# 1. Problem Statement
 
-**Why this is not a generic document Q&A task.** The user’s questions are **regulation‑shaped**: they ask for **commonalities** (e.g. shared scenario families, equivalent notions of collision threat, warning‑then‑brake logic, documentation of system boundaries and driver override), **divergences in technical requirements** (e.g. how each text scopes vehicle categories, phases applicability, prescribes test conditions, or structures approval evidence), and **reading aids** that tie a verbal requirement to **the exact table row** or **the diagram that defines the manoeuvre**. Answers must respect **specialised vocabulary** (vehicle categories M/N, approval vs. certification, system states, suppression conditions) and must not collapse two regimes into a vague “both require AEBS” summary. **Misalignment on a single speed band or scenario ID** can invalidate a test programme or a supplier declaration.
+1.1 Domain Identification
 
-**Why retrieval‑augmented generation.** Fine‑tuning a model on regulations risks **stale law** and opaque updates; pure keyword search cannot reliably fuse **table**, **text**, and **diagram‑derived** evidence. A **RAG** pipeline keeps the **current PDF corpus** as the source of truth: chunks preserve modality and location (page, annex, chunk type), retrieval surfaces **the clause, the table fragment, and the image or diagram summary** that jointly answer a query, and the generator is constrained to **ground** its comparison in those retrieved spans. That supports **auditable** homologation reasoning—critical when a Notified Body or internal compliance review asks “which paragraph and which figure?”
+The system targets vehicle homologation for Advanced Driver Assistance Systems (ADAS). Specifically, it indexes:AIS-162: Indian standard for Advanced Emergency Braking Systems (AEBS).UNECE R131: Uniform provisions for AEBS under the UN framework.
 
-**Expected outcomes.** The system should answer, with **explicit source references**, questions such as: where AIS‑162 and R131 **align on scenario philosophy and performance articulation**; where they **differ in technical prescription** (scope, thresholds, test boundaries, or approval artefacts); and how to **interpret a given table** in light of **its related diagram** (e.g. which scenario sketch corresponds to which annex table entries). Successful operation would **shorten cross‑regime gap analyses**, reduce misreads of **tabular limits**, and give engineers a **defensible, citation‑backed** basis for decisions on test scope and documentation structure—without replacing formal legal review.
+1.2 The Bottleneck
 
----
+Homologation engineers currently perform manual side-by-side reviews of PDF packs. The challenges include:Tabular Complexity: Speed bands and timing thresholds are buried in dense tables.Visual Context: Scenario geometry (vehicle lanes, targets) is often defined only in figures, not text.Audit Risk: A single misread threshold ($km/h$) can invalidate a test program.
 
-## Layout
+1.3 The RAG Solution
 
-| Path | Purpose |
-|------|---------|
-| `main.py` | Entry point |
-| `src/ingestion/` | Load and chunk documents, embeddings, index writes |
-| `src/retrieval/` | Search, reranking, context assembly |
-| `src/models/` | Schemas, LLM wrappers, prompts |
-| `src/api/` | HTTP API (e.g. FastAPI) |
-| `sample_documents/` | Example files for local testing |
-| `screenshots/` | Screenshots for docs or demos |
+Unlike fine-tuning, this RAG approach ensures:Provenance: Every answer cites a specific filename, page, and chunk type.Dynamic Updates: New regulations can be indexed instantly without retraining.Multimodal Fusion: Uses a Vision Language Model (VLM) to convert diagrams into searchable text descriptions.
 
-## Setup
+# 2. Architecture Overview
 
-```bash
+The pipeline handles PDF ingestion through a multi-stage process to preserve the semantic meaning of different document elements.
+
+Code snippet
+
+flowchart TB
+
+    subgraph ingest [Ingestion Pipeline]
+        PDF[PDF Upload] --> PM[PyMuPDF Extraction]
+        PM --> T[Text Chunks]
+        PM --> TB[Table Chunks - Markdown]
+        PM --> IM[Images - PNG + VLM Summary]
+        T --> E[Embedding Model]
+        TB --> E
+        IM --> E
+        E --> FAISS[(FAISS Vector Store)]
+    end
+
+    subgraph query [Query Pipeline]
+        Q[User Question] --> QE[Query Embedding]
+        QE --> SR[FAISS Similarity Search]
+        SR --> CTX[Context Assembly + Citations]
+        CTX --> LLM[Grounded Chat LLM]
+        LLM --> A[Answer + Sources JSON]
+    end
+
+# 3. Technology Stack
+
+| Layer | Component | Rationale |
+| :--- | :--- | :--- |
+| **Document Parser** | **PyMuPDF (`fitz`)** | Fast, reliable extraction of text, tables, and image XREFs. |
+| **Embeddings** | **NVIDIA Nemotron** | 2048-dimensional vectors for high-precision technical retrieval. |
+| **Vector Store** | **FAISS** | In-memory, high-performance vector similarity search. |
+| **VLM (Images)** | **Gemini 2.0 Flash** | Converts ADAS diagrams/figures into descriptive text before embedding. |
+| **API Framework** | **FastAPI** | Provides automated OpenAPI/Swagger documentation at `/docs`. |
+
+
+
+# 4. API Reference
+GET /health
+
+Returns system status, model readiness, and the current size of the vector index.
+
+POST /ingest
+
+Input: multipart/form-data (PDF file).
+
+Action: Parses the PDF, generates VLM summaries for images, and updates the FAISS index.
+
+POST /query
+
+Input: JSON object with question and optional top_k.
+
+Output: A grounded answer strictly based on the retrieved context, including detailed citations.
+
+
+# 5. Setup & Execution
+Prerequisites
+Python 3.11+
+
+API Keys for OpenRouter or OpenAI kept in .env
+
+## Installtion
+
+# Clone the repository
+
+git clone <repo-url>
+cd <repo-folder>
+
+# Setup virtual environment
+
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install dependencies
+
 pip install -r requirements.txt
-copy .env.example .env
-```
 
-## Run
+# Configure environment
 
-```bash
-python main.py
-```
+cp .env
 
-## Environment
 
-Copy `.env.example` to `.env` and set your keys and options.
 
-**Defaults:** embeddings use OpenRouter **`nvidia/llama-nemotron-embed-vl-1b-v2:free`** (FAISS dimension **2048**) via `CHAT_BASE_URL` + `OPENROUTER_API_KEY`; figure captions use **`OPENAI_API_KEY`** (VLM). Override with `EMBEDDING_MODEL=text-embedding-3-small` and `EMBEDDING_DIMENSION=1536` for OpenAI-only embeddings.
+# running the application
 
-**Important:** If you ingested with a **1536-d** index, switch to **2048** (or change model) only after **restarting** the app and **re-ingesting** PDFs so FAISS matches the embedding size.
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+Once running, access the Swagger UI at: http://localhost:8000/docs
+
+# 6. Implementation Evidence
+
+The following scenarios (found in the /screenshots folder) demonstrate the system's performance:
+
+Server_Response.png: 
+Successful server response
+
+ingest_pdf1.png & Indest_pdf2.png: 
+Successful ingestion of AIS-162 & r131 showing specific chunk counts for text, tables and images.
+
+Query.png: 
+A query response showing grounded text with page-level citations.
+
+Answer_to_Query.png: 
+A comparative query surfacing data from both AIS and UNECE documents simultaneously.
+
+# 7. Limitations & Future Work
+
+Table Extraction: 
+Currently optimized for vector-based PDFs; OCR-based table detection is a planned upgrade.
+
+Persistence: 
+The current FAISS index is in-memory. Future versions will implement persistent disk storage for vector data.
+
+Reranking: 
+Integration of a Cross-Encoder for re-ranking search results to further improve precision.
+
+# Academic Note:
+ 
+This project was developed for the BITS PILANI WILP program as part of the Multimodal AI Assignment.
+
