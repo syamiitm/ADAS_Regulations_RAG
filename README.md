@@ -76,6 +76,7 @@ Output: A grounded answer strictly based on the retrieved context, including det
 
 # 5. Setup & Execution
 Prerequisites
+
 Python 3.11+
 
 API Keys for OpenRouter or OpenAI kept in .env
@@ -100,8 +101,6 @@ pip install -r requirements.txt
 
 cp .env
 
-
-
 # running the application
 
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -112,29 +111,29 @@ Once running, access the Swagger UI at: http://localhost:8000/docs
 The following scenarios (found in the /screenshots folder) demonstrate the system's performance:
 
 Server_Response.png: 
-Successful server response
+    Successful server response
 
 ingest_pdf1.png & Indest_pdf2.png: 
-Successful ingestion of AIS-162 & r131 showing specific chunk counts for text, tables and images.
+    Successful ingestion of AIS-162 & r131 showing specific chunk counts for text, tables and images.
 
 Query.png: 
-A query response showing grounded text with page-level citations.
+    A query response showing grounded text with page-level citations.
 
 Answer_to_Query.png: 
-A comparative query surfacing data from both AIS and UNECE documents simultaneously.
+    A comparative query surfacing data from both AIS and UNECE documents simultaneously.
 
 # 7. Limitations & Future Work
 
 Table Extraction: 
-Currently optimized for vector-based PDFs; OCR-based table detection is a planned upgrade.
+    Currently optimized for vector-based PDFs; OCR-based table detection is a planned upgrade.
 
 Persistence: 
-The current FAISS index is in-memory. Future versions will implement persistent disk storage for vector data.
+    The current FAISS index is in-memory. Future versions will implement persistent disk storage for vector data.
 
 Reranking: 
-Integration of a Cross-Encoder for re-ranking search results to further improve precision.
+    Integration of a Cross-Encoder for re-ranking search results to further improve precision.
 
 # Academic Note:
- 
+
 This project was developed for the BITS PILANI WILP program as part of the Multimodal AI Assignment.
 
