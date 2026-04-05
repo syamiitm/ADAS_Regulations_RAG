@@ -39,6 +39,13 @@ class IngestResponse(BaseModel):
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=8000)
     top_k: int | None = Field(default=None, ge=1, le=50)
+    diversify_sources: bool | None = Field(
+        default=None,
+        description=(
+            "When true, retrieval ensures each PDF gets at least one chunk in context when possible "
+            "(uses global default from QUERY_DIVERSIFY_SOURCES when omitted)."
+        ),
+    )
 
 
 class SourceRef(BaseModel):

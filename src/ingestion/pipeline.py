@@ -10,6 +10,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
+from src import config
 from src.ingestion.chunks import ParsedChunk
 from src.ingestion.smart_chunker import SmartChunker, documents_to_parsed_chunks
 from src.models.embeddings import embed_texts
@@ -26,9 +27,21 @@ def _enrich_images_with_vlm(
         if ch.chunk_type != "image":
             continue
         if client is not None and ch.image_bytes:
-            summary = summarize_figure_png(client, ch.image_bytes)
-            ch.content = f"{ch.content}\n\n[VLM summary]\n{summary}".strip()
-        ch.extra["vlm_applied"] = bool(client is not None and ch.image_bytes)
+            try:
+                summary = summarize_figure_png(client, ch.image_bytes)
+                ch.content = f"{ch.content}\n\n[VLM summary]\n{summary}".strip()
+                ch.extra["vlm_applied"] = True
+            except Exception as e:
+                logger.warning(
+                    "VLM failed (page=%s, model=%s): %s",
+                    ch.page,
+                    config.get_vision_model(),
+                    e,
+                )
+                ch.extra["vlm_applied"] = False
+                ch.extra["vlm_error"] = str(e)[:500]
+        else:
+            ch.extra["vlm_applied"] = bool(client is not None and ch.image_bytes)
 
 
 def ingest_pdf_to_store(

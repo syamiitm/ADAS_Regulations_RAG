@@ -1,4 +1,4 @@
-"""FastAPI application: /health, /ingest, /query, /docs."""
+"""FastAPI application: / → /docs, /health, /ingest, /query, /stats."""
 
 from __future__ import annotations
 
@@ -14,7 +14,9 @@ from dotenv import load_dotenv
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(_PROJECT_ROOT / ".env")
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse, RedirectResponse
+from starlette.responses import Response
 
 from src import config
 from src.api import state as app_state
@@ -99,6 +101,24 @@ app = FastAPI(
         "figure VLM uses OpenRouter chat when CHAT_BASE_URL is set, else OpenAI; FAISS."
     ),
 )
+
+
+@app.get("/", response_model=None)
+def root(request: Request) -> Response:
+    """Browsers → Swagger UI; curl / API clients → JSON (avoids empty 404 on Codespaces)."""
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return RedirectResponse(url="/docs")
+    return JSONResponse(
+        {
+            "service": "RAG Assignment API",
+            "docs": "/docs",
+            "openapi": "/openapi.json",
+            "health": "GET /health",
+            "ingest": "POST /ingest (multipart PDF)",
+            "query": "POST /query",
+        }
+    )
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -242,6 +262,7 @@ def query(body: QueryRequest) -> QueryResponse:
             chat_client,
             body.question,
             top_k=body.top_k,
+            diversify_sources=body.diversify_sources,
         )
         sources = [
             SourceRef(

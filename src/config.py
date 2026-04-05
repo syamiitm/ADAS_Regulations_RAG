@@ -98,14 +98,17 @@ def get_chat_model() -> str:
     return "qwen/qwen3.6-plus:free" if url else "gpt-4o-mini"
 
 
-# OpenRouter router: picks a free model that supports the request (e.g. vision when images are sent).
-# Avoids hard-coded :free model IDs that OpenRouter may retire (404 "No endpoints found").
-_DEFAULT_VISION_MODEL_OPENROUTER = "openrouter/free"
+# Explicit vision model: ``openrouter/free`` does not support image_url input (404 "No endpoints found").
+# Override with any OpenRouter vision-capable id if this slug changes.
+_DEFAULT_VISION_MODEL_OPENROUTER = "google/gemini-2.0-flash-exp:free"
 
 
 def get_vision_model() -> str:
-    """Model for figure VLM; on OpenRouter defaults to ``openrouter/free`` if VISION_MODEL unset."""
+    """Model for figure VLM; on OpenRouter defaults to a vision-capable :free model if VISION_MODEL unset."""
     raw = os.getenv("VISION_MODEL", "").strip()
+    # Router-only ids cannot serve image_url multimodal requests on OpenRouter.
+    if raw.lower() in ("openrouter/free", "openrouter/auto"):
+        return _DEFAULT_VISION_MODEL_OPENROUTER
     if raw:
         return raw
     if os.getenv("CHAT_BASE_URL", "").strip().rstrip("/"):
@@ -120,6 +123,11 @@ QUERY_REWRITE_MAX_TOKENS = _env_int("QUERY_REWRITE_MAX_TOKENS", 256)
 def get_query_rewrite_enabled() -> bool:
     """If true, /query runs one chat call to rewrite the question before embedding (retrieval only)."""
     return _env_bool("QUERY_REWRITE", False)
+
+
+def get_query_diversify_sources() -> bool:
+    """If true, /query oversamples FAISS then picks hits so each ``source_file`` appears (multi-PDF compare)."""
+    return _env_bool("QUERY_DIVERSIFY_SOURCES", True)
 
 
 def get_skip_vlm() -> bool:
