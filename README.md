@@ -1,21 +1,80 @@
 # Multimodal RAG API — ADAS regulatory intelligence (AIS‑162 & UNECE R131)
 
+## Problem Overview
 
-This repository implements an end-to-end **multimodal RAG** system: it ingests PDFs that mix **text, tables, and figures**, indexes **embeddings in FAISS**, enriches **image chunks with a Vision Language Model (VLM)** before embedding, and exposes **FastAPI** endpoints for health, ingestion, and grounded Q&A with **citations**. 
+### Domain Identification
+The system focuses on **vehicle type approval and ADAS regulatory engineering**, specifically for:
+- **AIS-162 (India)** – AEBS requirements for commercial vehicles  
+- **UNECE R131** – International AEBS regulation  
+
+Users include homologation engineers, compliance teams, and test-house reviewers who work with **multimodal PDF documents** containing:
+- Normative text clauses  
+- Annex tables (speed limits, timing, exclusions)  
+- Scenario diagrams  
+
+Their tasks involve **conformity checks, homologation extensions, and compliance documentation**, all requiring strict alignment with regulatory wording.
 
 ---
 
-## Problem Statement
+### Problem Description
+The key challenge is **accurately comparing regulations** without:
+- Misinterpreting tabular data  
+- Losing context from diagrams  
 
-**Domain identification.** The system targets **vehicle type approval**, **Advanced Driver Assistance Systems (ADAS)**, and **regulatory engineering** for markets that reference **India’s AIS‑162** (Advanced Emergency Braking Systems, AEBS, for selected commercial categories) and **UNECE Regulation No. R131** (uniform provisions for AEBS under the UN framework). Homologation engineers, supplier compliance teams, and test-house reviewers work from **PDF packs** that combine normative clauses, **annex tables** (speed bands, timing, exclusions), and **diagrams** of longitudinal threat scenarios. Day-to-day work includes **conformity of production** checks, **homologation extension** dossiers, and **customer-specific** declarations that must remain consistent with the exact wording and limits of the applicable instrument.
+Regulatory information is inherently **multimodal**:
+- Tables define limits  
+- Text defines rules  
+- Figures define scenarios  
 
-**Problem description.** The bottleneck is **comparing instruments** without misreading **tabular thresholds** or losing **figure-bound context**. AIS‑162 and R131 are self-contained approval texts: limits sit in dense tables, while **scenario geometry**—who moves, lane relationship, target class—often lives in **figures** that tables assume but do not repeat. **Multimodal** structure is intrinsic: a single “simple” question such as whether a **false-activation** or **stationary-target** test is prescribed identically in two regimes may require **simultaneous** reading of a **table row**, a **definition clause**, and a **layout sketch**. Flat text export and keyword search fail because **cell semantics are fragile** when columns collapse, **figure captions drift** from body text in linearised output, and **cross-references** span modalities (“see Annex …, figure …”). Teams still default to manual side-by-side review, which is slow, error-prone under deadline pressure, and hard to audit when an interpretation is challenged by a **Notified Body** or an OEM’s compliance office.
+Simple queries often require **combined interpretation** of all three.  
+Traditional methods (keyword search, text extraction) fail due to:
+- Loss of table structure  
+- Separation of figures from context  
+- Broken cross-references  
 
-**Why this is not generic Q&A.** Questions are **regulation-shaped**: they ask for **alignments** (shared scenario families, warning-then-brake logic, documentation of system boundaries), **divergences** (how each text scopes vehicle categories, phases applicability, prescribes test conditions, or structures approval evidence), and **traceability** to the **exact table row** or **diagram** that defines a manoeuvre. Answers must respect **specialised vocabulary** (vehicle categories M/N, approval versus certification, system states, suppression and override conditions). **One wrong speed band or scenario ID** can invalidate a test programme or a supplier declaration. A generic “chat with PDF” tool that returns undifferentiated paragraphs cannot enforce **which annex** or **which figure** supports a claim—yet that is precisely what formal engineering review demands.
+This leads to **manual comparison**, which is:
+- Time-consuming  
+- Error-prone  
+- Difficult to audit  
 
-**Why RAG is the right approach.** **Fine-tuning** a large model on regulations risks **stale law** whenever standards are amended, and it obscures **provenance**: reviewers cannot see which revision of which paragraph grounded an answer. **Manual search** and **keyword matching** cannot reliably fuse **table fragments**, **normative clauses**, and **diagram-derived descriptions** into a single ranked evidence set. **RAG** keeps the **current PDF corpus** as the **source of truth**: each retrievable unit preserves **modality and location** (source file, page, chunk type); retrieval can surface **the clause, the table excerpt, and the image summary** that jointly answer a query; the generator is constrained by a **custom prompt** to use **only** that context and to cite **filename, page, and chunk type** where possible. That supports **auditable** homologation reasoning—critical when someone asks “which paragraph and which figure?”—without pretending to replace **formal legal** or **homologation authority** sign-off.
+---
 
-**Expected outcomes.** A successful system enables **grounded** responses to questions such as: how **AEBS** is **defined** in each instrument; where the texts **align** on scenario philosophy and performance articulation; where they **differ** in technical prescription (scope, thresholds, test boundaries, or approval artefacts); and how to **interpret a given table** in light of **its related diagram**. It should **shorten cross-regime gap analyses**, reduce **tabular misreads**, and give engineers a **defensible, citation-backed** basis for decisions on **test scope** and **documentation structure**. The system should also **signal uncertainty**: when retrieval returns only one standard or insufficient chunks, the answer should state that the **context is insufficient** for a full comparison rather than inventing symmetry between regimes. Together, these outcomes map directly to the **BITS WILP** expectation of a **domain-specific**, **multimodal** RAG system that solves a **real** professional or academic problem rather than a toy demo.
+### Why This Is Not Generic Q&A
+This is a **domain-specific problem**, not general document querying. Queries require:
+- Identifying **alignments and differences** across regulations  
+- Maintaining **traceability** to exact clauses, tables, or figures  
+- Understanding **specialised terminology** (vehicle categories, system states, etc.)  
+
+Even small errors (e.g., wrong speed threshold) can result in **invalid compliance decisions**.  
+Generic PDF chat systems lack the ability to provide **structured, evidence-backed answers**.
+
+---
+
+### Why RAG Is the Right Approach
+A **Retrieval-Augmented Generation (RAG)** approach is suitable because:
+
+- Avoids outdated knowledge from fine-tuning  
+- Preserves **provenance** (exact source of information)  
+- Combines **text, tables, and image summaries** during retrieval  
+
+The system:
+- Retrieves relevant multimodal chunks  
+- Maintains metadata (file, page, type)  
+- Generates answers constrained to retrieved evidence  
+
+This ensures **auditable and reliable outputs**, critical for regulatory workflows.
+
+---
+
+### Expected Outcomes
+The system is expected to:
+- Enable **accurate comparison** of AIS-162 and R131  
+- Provide **citation-backed, grounded answers**  
+- Reduce **manual effort and errors**  
+- Support **better compliance decision-making**  
+
+It also handles **uncertainty explicitly**, avoiding unsupported conclusions when data is insufficient.
+
 
 ---
 
