@@ -204,8 +204,8 @@ flowchart TB
 ### Steps
 
 ```bash
-git clone <your-public-repo-url>
-cd <repo-directory>
+git clone <https://github.com/syamiitm/ADAS_Regulations_RAG.git>
+cd <https://github.com/syamiitm/ADAS_Regulations_RAG>
 
 python -m venv .venv
 # Windows:
